@@ -1,11 +1,14 @@
-use image::{ImageBuffer, Pixel, RgbImage};
-use rand::prelude::*;
+use image::{ImageBuffer, RgbImage};
 
-mod vec3;
-mod ray;
+pub mod vec3;
+pub mod ray;
+pub mod hittable;
+pub mod sphere;
 
-use vec3::*;
-use ray::*;
+use crate::vec3::*;
+use crate::ray::*;
+use crate::sphere::*;
+use crate::hittable::*;
 
 fn main() {
     // image
@@ -32,19 +35,33 @@ fn main() {
 
             let r = Ray {
                 orig : origin,
-                dir : lower_left_corner + u * horizontal + (-v) * vertical - origin,
+                dir : lower_left_corner + u * horizontal + v * vertical - origin,
             };
+            
+            let color = ray_color(&r); 
 
-            let unit_dir = r.direction().unit();
-            let t = 0.5 * (unit_dir.e[1] + 1.0);
-            let color = (1.0 - t) * Color::new(1.0, 1.0, 1.0) + t * Color::new(0.5, 0.7, 1.0);
-
-            write_pixel(&mut img, i, j, color);
+            // invert y axis
+            write_pixel(&mut img, i, height - j - 1, color);
         }
 
     }
 
     img.save("test.png").unwrap();
+}
+
+fn ray_color(ray : &Ray) -> Color {
+    let unit_dir = ray.direction().unit();
+    let t = 0.5 * (unit_dir.e[1] + 1.0);
+
+    let mut col = (1.0 - t) * Color::new(1.0, 1.0, 1.0) + t * Color::new(0.5, 0.7, 1.0);
+
+    let sphere = Sphere::new(Point3::new(0, 0, -1), 0.5);
+
+    if let Some(info) = sphere.hit(ray, 0.0, 1000.0) {
+        col = 0.5 * Color::new(info.normal.e[0] + 1.0, info.normal.e[1] + 1.0, info.normal.e[2] + 1.0);
+    }
+
+    col
 }
 
 fn write_pixel<U>(img : &mut image::ImageBuffer<image::Rgb<u8>, U>, x : u32, y : u32, c : Color)
