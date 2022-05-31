@@ -1,21 +1,24 @@
-use crate::vec3::*;
-use crate::ray::*;
 use crate::hittable::*;
+use crate::ray::*;
+use crate::vec3::*;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Sphere {
-    center : Point3,
-    radius : f64,
+    center: Point3,
+    radius: f64,
 }
 
 impl Sphere {
-    pub fn new(cen : Point3, r : f64) -> Sphere {
-        Sphere { center : cen , radius : r }
+    pub fn new(cen: Point3, r: f64) -> Sphere {
+        Sphere {
+            center: cen,
+            radius: r,
+        }
     }
 }
 
 impl Hittable for Sphere {
-    fn hit(&self, ray : &Ray, t_min : f64, t_max : f64) -> Option<HitInfo> {
+    fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<HitInfo> {
         let orig_center = ray.orig - self.center;
 
         let a = ray.dir.length2();
@@ -29,14 +32,14 @@ impl Hittable for Sphere {
         }
 
         let t = (-h - disc.sqrt()) / a;
-            
+
         if t < t_min || t > t_max {
             return None;
         }
 
         let p = ray.at(t);
-        let normal = (p - self.center).unit();
-        let info = HitInfo {p, normal, t};
+        let outward_normal = (p - self.center).unit();
+        let info = HitInfo::new(ray, p, outward_normal, t);
 
         Some(info)
     }
