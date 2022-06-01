@@ -13,6 +13,12 @@ impl Vec3 {
         return Vec3 { e: [0.0, 0.0, 0.0] };
     }
 
+    pub fn is_zero(&self) -> bool {
+        const S : f64 = 1e-8;
+
+        (self.e[0].abs() < S) && (self.e[0].abs() < S) && (self.e[0].abs() < S)
+    }
+
     pub fn new<T, U, V>(x: T, y: U, z: V) -> Vec3
     where
         T: Into<f64>,
@@ -95,6 +101,16 @@ impl ops::Mul<Vec3> for f64 {
     fn mul(self, _rhs: Vec3) -> Vec3 {
         Vec3 {
             e: [_rhs.e[0] * self, _rhs.e[1] * self, _rhs.e[2] * self],
+        }
+    }
+}
+
+impl ops::Mul<Vec3> for Vec3 {
+    type Output = Vec3;
+
+    fn mul(self, _rhs: Vec3) -> Vec3 {
+        Vec3 {
+            e: [_rhs.e[0] * self.e[0], _rhs.e[1] * self.e[1], _rhs.e[2] * self.e[2]],
         }
     }
 }

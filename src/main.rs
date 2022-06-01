@@ -1,58 +1,54 @@
 use image::{ImageBuffer, RgbImage};
 use rand::prelude::*;
 
+pub mod camera;
 pub mod hittable;
 pub mod ray;
 pub mod sphere;
 pub mod vec3;
+pub mod material;
+pub mod utils;
 
+use crate::camera::*;
 use crate::hittable::*;
 use crate::ray::*;
 use crate::sphere::*;
 use crate::vec3::*;
+use crate::material::*;
 
 fn main() {
     // image
     let aspect_ratio: f64 = 16.0 / 9.0;
-    let width: u32 = 400;
-    let height: u32 = (width as f64 / aspect_ratio).floor() as u32;
+    let output_width: u32 = 720;
+    let output_height: u32 = (output_width as f64 / aspect_ratio).floor() as u32;
 
     // world
-    let mut world = HittableList {
-        objects: Vec::new(),
-    };
-    world.add(Sphere::new(Point3::new(0, 0, -1), 0.5));
-    world.add(Sphere::new(Point3::new(0, -100.5, -1), 100.0));
-    world.add(Sphere::new(Point3::new(2.0, -0.2, -1.5), 0.4));
+    let mut world = HittableList::new();
+    let blue = std::rc::Rc::new(Lambertian { albedo: Color::new(0.2, 0.1, 0.8) });
+    let green = std::rc::Rc::new(Lambertian { albedo: Color::new(0.1, 0.8, 0.1) });
+    let metal = std::rc::Rc::new(Metal { albedo: Color::new(0.8, 0.8, 0.8), fuzz: 0.0});
+
+    world.add(Sphere::new(Point3::new(0, 0, -1.2), 0.5, metal.clone()));
+    world.add(Sphere::new(Point3::new(1.0, -0.1, -0.9), 0.4, green.clone()));
+    world.add(Sphere::new(Point3::new(0, -100.5, -1), 100.0, blue.clone()));
 
     // camera
-    let viewport_height = 2.0;
-    let viewport_width = aspect_ratio * viewport_height;
-    let focal_length = 1.0;
-    let samples_per_pixel = 100;
-    let max_depth = 50;
+    let cam = Camera::new(90.0, 16.0 / 9.0);
+    let samples_per_pixel = 50;
+    let max_depth = 10;
 
-    let origin = Vec3::new(0, 0, 0);
-    let horizontal = Vec3::new(viewport_width, 0, 0);
-    let vertical = Vec3::new(0, viewport_height, 0);
-    let lower_left_corner =
-        origin - horizontal / 2.0 - vertical / 2.0 - Vec3::new(0, 0, focal_length);
-
-    let mut img: RgbImage = ImageBuffer::new(width, height);
+    let mut img: RgbImage = ImageBuffer::new(output_width, output_height);
 
     let mut rng = rand::thread_rng();
 
-    for i in 0..width {
-        for j in 0..height {
+    for i in 0..output_width {
+        for j in 0..output_height {
             let mut color = Color::zero();
             for _ in 0..samples_per_pixel {
-                let u = (i as f64 + rng.gen_range(0.0..1.0)) / (width as f64 - 1.0);
-                let v = (j as f64 + rng.gen_range(0.0..1.0)) / (height as f64 - 1.0);
+                let u = (i as f64 + rng.gen_range(0.0..1.0)) / (output_width as f64 - 1.0);
+                let v = (j as f64 + rng.gen_range(0.0..1.0)) / (output_height as f64 - 1.0);
 
-                let r = Ray {
-                    orig: origin,
-                    dir: lower_left_corner + u * horizontal + v * vertical - origin,
-                };
+                let r = cam.get_ray(u, v);
 
                 color = color + ray_color(&r, &world, max_depth);
             }
@@ -60,7 +56,7 @@ fn main() {
             color = color / samples_per_pixel as f64;
 
             // invert y axis
-            write_pixel(&mut img, i, height - j - 1, color);
+            write_pixel(&mut img, i, output_height - j - 1, color);
         }
     }
 
@@ -78,9 +74,21 @@ fn ray_color(ray: &Ray, world: &HittableList, depth: u64) -> Color {
     let mut col = (1.0 - t) * Color::new(1.0, 1.0, 1.0) + t * Color::new(0.5, 0.7, 1.0);
 
     if let Some(info) = world.hit(ray, 0.0, 1000.0) {
-        let target = info.p + info.normal + random_point_in_sphere();
-        col = 0.5 * ray_color(&Ray { orig: info.p, dir: target - info.p }, world, depth - 1);
+        let target = info.p + info.normal + utils::random_unit_vector();
+        col = 0.5
+            * ray_color(
+                &Ray {
+                    orig: info.p,
+                    dir: target - info.p,
+                },
+                world,
+                depth - 1,
+            );
+
+        if let Some((scattered, atteunuation)) = info.material.scatter(ray, info.clone()) {
+            col = atteunuation * ray_color(&scattered, world, depth - 1);
         }
+    }
 
     col
 }
@@ -90,24 +98,10 @@ where
     U: std::ops::Deref<Target = [u8]> + std::ops::DerefMut, // rust is simple..
 {
     let p = image::Rgb([
-        (c.e[0] * 255.999).floor() as u8,
-        (c.e[1] * 255.999).floor() as u8,
-        (c.e[2] * 255.999).floor() as u8,
+        (c.e[0].sqrt() * 255.999).floor() as u8,
+        (c.e[1].sqrt() * 255.999).floor() as u8,
+        (c.e[2].sqrt() * 255.999).floor() as u8,
     ]);
     img.put_pixel(x, y, p);
 }
 
-fn random_point_in_sphere() -> Point3 {
-    let mut rng = rand::thread_rng();
-    loop {
-        let p = Point3::new(
-            rng.gen_range(0.0..1.0),
-            rng.gen_range(0.0..1.0),
-            rng.gen_range(0.0..1.0),
-        );
-
-        if p.length2() < 1.0 {
-            return p;
-        }
-    }
-}
