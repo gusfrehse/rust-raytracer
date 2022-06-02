@@ -27,3 +27,11 @@ pub fn random_point_in_sphere() -> Point3 {
 pub fn reflect(v: Vec3, n: Vec3) -> Vec3 {
     v - 2.0 * v.dot(n) * n
 }
+
+pub fn refract(v: Vec3, n: Vec3, etai_over_etat: f64) -> Vec3 {
+    let cos_theta = n.dot(-1.0 * v).min(1.0);
+    let out_perp = etai_over_etat * (v + cos_theta * n);
+    let out_parallel = -(1.0 - out_perp.length2()).sqrt() * n;
+
+    out_perp + out_parallel
+}

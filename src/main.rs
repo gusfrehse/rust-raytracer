@@ -27,9 +27,11 @@ fn main() {
     let blue = std::rc::Rc::new(Lambertian { albedo: Color::new(0.2, 0.1, 0.8) });
     let green = std::rc::Rc::new(Lambertian { albedo: Color::new(0.1, 0.8, 0.1) });
     let metal = std::rc::Rc::new(Metal { albedo: Color::new(0.8, 0.8, 0.8), fuzz: 0.0});
+    let glass = std::rc::Rc::new(Dieletric { ir: 1.5 });
 
-    world.add(Sphere::new(Point3::new(0, 0, -1.2), 0.5, metal.clone()));
-    world.add(Sphere::new(Point3::new(1.0, -0.1, -0.9), 0.4, green.clone()));
+    world.add(Sphere::new(Point3::new(-1.0, 0, -1.0), 0.5, glass.clone()));
+    world.add(Sphere::new(Point3::new(0.1, 0, -6.0), 0.5, green.clone()));
+    world.add(Sphere::new(Point3::new(1.0, -0.1, -0.9), 0.4, metal.clone()));
     world.add(Sphere::new(Point3::new(0, -100.5, -1), 100.0, blue.clone()));
 
     // camera
