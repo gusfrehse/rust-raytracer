@@ -14,7 +14,7 @@ impl Vec3 {
     }
 
     pub fn is_zero(&self) -> bool {
-        const S : f64 = 1e-8;
+        const S: f64 = 1e-8;
 
         (self.e[0].abs() < S) && (self.e[0].abs() < S) && (self.e[0].abs() < S)
     }
@@ -110,7 +110,11 @@ impl ops::Mul<Vec3> for Vec3 {
 
     fn mul(self, _rhs: Vec3) -> Vec3 {
         Vec3 {
-            e: [_rhs.e[0] * self.e[0], _rhs.e[1] * self.e[1], _rhs.e[2] * self.e[2]],
+            e: [
+                _rhs.e[0] * self.e[0],
+                _rhs.e[1] * self.e[1],
+                _rhs.e[2] * self.e[2],
+            ],
         }
     }
 }

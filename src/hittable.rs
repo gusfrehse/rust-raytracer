@@ -1,6 +1,6 @@
+use crate::material::*;
 use crate::ray::*;
 use crate::vec3::*;
-use crate::material::*;
 
 #[derive(Clone)]
 pub struct HitInfo {
@@ -8,11 +8,17 @@ pub struct HitInfo {
     pub normal: Vec3,
     pub t: f64,
     pub front_face: bool,
-    pub material : std::rc::Rc<dyn Material>
+    pub material: std::rc::Rc<dyn Material>,
 }
 
 impl HitInfo {
-    pub fn new(r: &Ray, p: Vec3, outward_normal: Vec3, t: f64, hit_material : std::rc::Rc<dyn Material>) -> HitInfo {
+    pub fn new(
+        r: &Ray,
+        p: Vec3,
+        outward_normal: Vec3,
+        t: f64,
+        hit_material: std::rc::Rc<dyn Material>,
+    ) -> HitInfo {
         let front_face = r.direction().dot(outward_normal) < 0.0;
         let normal = if front_face {
             outward_normal
@@ -25,7 +31,7 @@ impl HitInfo {
             normal,
             t,
             front_face,
-            material: hit_material.clone()
+            material: hit_material.clone(),
         }
     }
 }

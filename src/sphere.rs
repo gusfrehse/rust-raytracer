@@ -1,7 +1,7 @@
 use crate::hittable::*;
+use crate::material::*;
 use crate::ray::*;
 use crate::vec3::*;
-use crate::material::*;
 
 #[derive(Clone)]
 pub struct Sphere {
@@ -15,7 +15,7 @@ impl Sphere {
         Sphere {
             center: cen,
             radius: r,
-            material: mat
+            material: mat,
         }
     }
 }
@@ -34,14 +34,18 @@ impl Hittable for Sphere {
             return None;
         }
 
-        let t = (-h - disc.sqrt()) / a;
+        let mut t = (-h - disc.sqrt()) / a;
 
         if t < t_min || t > t_max {
-            return None;
+            t = (-h + disc.sqrt()) / a;
+
+            if t < t_min || t > t_max {
+                return None;
+            }
         }
 
         let p = ray.at(t);
-        let outward_normal = (p - self.center).unit();
+        let outward_normal = (p - self.center) / self.radius;
         let info = HitInfo::new(ray, p, outward_normal, t, self.material.clone());
 
         Some(info)
