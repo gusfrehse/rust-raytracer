@@ -33,7 +33,6 @@ fn main() {
     let dist_to_focus = 10.0;
     let aperture = 0.1;
     let fov = 20.0;
-    let aspect_ratio = 16.0 / 9.0;
     let cam = Camera::new(
         lookfrom,
         lookat,
