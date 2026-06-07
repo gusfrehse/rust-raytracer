@@ -7,11 +7,11 @@ use crate::vec3::*;
 pub struct Sphere {
     center: Point3,
     radius: f64,
-    material: std::rc::Rc<dyn Material>,
+    material: std::rc::Rc<dyn BSDF>,
 }
 
 impl Sphere {
-    pub fn new(cen: Point3, r: f64, mat: std::rc::Rc<dyn Material>) -> Sphere {
+    pub fn new(cen: Point3, r: f64, mat: std::rc::Rc<dyn BSDF>) -> Sphere {
         Sphere {
             center: cen,
             radius: r,

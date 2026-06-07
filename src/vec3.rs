@@ -16,7 +16,7 @@ impl Vec3 {
     pub fn is_zero(&self) -> bool {
         const S: f64 = 1e-8;
 
-        (self.e[0].abs() < S) && (self.e[0].abs() < S) && (self.e[0].abs() < S)
+        (self.e[0].abs() < S) && (self.e[1].abs() < S) && (self.e[2].abs() < S)
     }
 
     pub fn new<T, U, V>(x: T, y: U, z: V) -> Vec3

@@ -3,15 +3,18 @@ use crate::ray::*;
 use crate::utils;
 use crate::vec3::*;
 
-pub trait Material {
+pub trait BSDF {
     fn scatter(&self, r: &Ray, info: HitInfo) -> Option<(Ray, Color)>;
+    fn eval(&self, wo: &Vec3, wi: &Vec3) -> Color;
+    fn sample(&self, wo: &Vec3, info: HitInfo) -> (Vec3, Color, f64); // wi, f, pdf
+    fn pdf(&self, wo: &Vec3, wi: &Vec3, info: HitInfo) -> f64;
 }
 
 pub struct Lambertian {
     pub albedo: Color,
 }
 
-impl Material for Lambertian {
+impl BSDF for Lambertian {
     fn scatter(&self, _r: &Ray, info: HitInfo) -> Option<(Ray, Color)> {
         let mut dir = info.normal + utils::random_unit_vector();
 
@@ -24,6 +27,27 @@ impl Material for Lambertian {
 
         Some((scattered, attenuation))
     }
+
+    fn eval(&self, _wo: &Vec3, _wi: &Vec3) -> Color {
+        self.albedo / utils::PI
+    }
+
+    fn sample(&self, _wo: &Vec3, info: HitInfo) -> (Vec3, Color, f64) {
+        let mut dir = info.normal + utils::random_unit_vector();
+
+        if dir.is_zero() {
+            dir = info.normal;
+        }
+
+        let wi = dir.unit();
+        let pdf = wi.dot(info.normal).max(0.) / utils::PI;
+
+        (wi, self.albedo / utils::PI, pdf)
+    }
+
+    fn pdf(&self, _wo: &Vec3, wi: &Vec3, info: HitInfo) -> f64 {
+        wi.dot(info.normal).max(0.) / utils::PI
+    }
 }
 
 pub struct Metal {
@@ -31,7 +55,7 @@ pub struct Metal {
     pub fuzz: f64,
 }
 
-impl Material for Metal {
+impl BSDF for Metal {
     fn scatter(&self, r: &Ray, info: HitInfo) -> Option<(Ray, Color)> {
         let dir =
             utils::reflect(r.dir.unit(), info.normal) + self.fuzz * utils::random_point_in_sphere();
@@ -44,6 +68,27 @@ impl Material for Metal {
 
             Some((scattered, attenuation))
         }
+    }
+
+    fn eval(&self, _wo: &Vec3, _wi: &Vec3) -> Color {
+        Vec3::new(0., 1., 0.) / utils::PI
+    }
+
+    fn sample(&self, _wo: &Vec3, info: HitInfo) -> (Vec3, Color, f64) {
+        let mut dir = info.normal + utils::random_unit_vector();
+
+        if dir.is_zero() {
+            dir = info.normal;
+        }
+
+        let wi = dir.unit();
+        let pdf = wi.dot(info.normal).max(0.);
+
+        (wi, Vec3::new(0., 1., 0.) / utils::PI, pdf)
+    }
+
+    fn pdf(&self, _wo: &Vec3, wi: &Vec3, info: HitInfo) -> f64 {
+        wi.dot(info.normal).max(0.) / utils::PI
     }
 }
 
@@ -59,7 +104,7 @@ impl Dieletric {
     }
 }
 
-impl Material for Dieletric {
+impl BSDF for Dieletric {
     fn scatter(&self, r: &Ray, info: HitInfo) -> Option<(Ray, Color)> {
         let attenuation = Color::new(1.0, 1.0, 1.0);
 
@@ -88,5 +133,26 @@ impl Material for Dieletric {
         };
 
         Some((scattered, attenuation))
+    }
+
+    fn eval(&self, _wo: &Vec3, _wi: &Vec3) -> Color {
+        Vec3::new(1.0, 0.0, 0.0) / utils::PI
+    }
+
+    fn sample(&self, _wo: &Vec3, info: HitInfo) -> (Vec3, Color, f64) {
+        let mut dir = info.normal + utils::random_unit_vector();
+
+        if dir.is_zero() {
+            dir = info.normal;
+        }
+
+        let wi = dir.unit();
+        let pdf = wi.dot(info.normal).max(0.);
+
+        (wi, Vec3::new(1.0, 0.0, 0.0) / utils::PI, pdf)
+    }
+
+    fn pdf(&self, _wo: &Vec3, wi: &Vec3, info: HitInfo) -> f64 {
+        wi.dot(info.normal).max(0.) / utils::PI
     }
 }

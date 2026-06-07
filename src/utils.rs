@@ -1,12 +1,18 @@
 use rand::prelude::*;
+use std::sync::{Mutex, OnceLock};
 
 use crate::vec3::*;
 
 pub const PI: f64 = std::f64::consts::PI;
-pub const INFINITY: f64 = std::f64::INFINITY;
+pub const INFINITY: f64 = f64::INFINITY;
+
+fn global_rng() -> &'static Mutex<rand::rngs::StdRng> {
+    static RNG: OnceLock<Mutex<rand::rngs::StdRng>> = OnceLock::new();
+    RNG.get_or_init(|| Mutex::new(rand::rngs::StdRng::seed_from_u64(12312321)))
+}
 
 pub fn random_double() -> f64 {
-    rand::thread_rng().gen_range(0.0..1.0)
+    global_rng().lock().unwrap().gen_range(0.0..1.0)
 }
 
 pub fn random_unit_vector() -> Vec3 {
@@ -14,7 +20,7 @@ pub fn random_unit_vector() -> Vec3 {
 }
 
 pub fn random_point_in_sphere() -> Point3 {
-    let mut rng = rand::thread_rng();
+    let mut rng = global_rng().lock().unwrap();
     loop {
         let p = Point3::new(
             rng.gen_range(0.0..1.0),
@@ -29,7 +35,7 @@ pub fn random_point_in_sphere() -> Point3 {
 }
 
 pub fn random_point_in_disk() -> Point3 {
-    let mut rng = rand::thread_rng();
+    let mut rng = global_rng().lock().unwrap();
     loop {
         let p = Point3::new(rng.gen_range(0.0..1.0), rng.gen_range(0.0..1.0), 0.0);
 

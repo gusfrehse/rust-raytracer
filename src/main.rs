@@ -1,5 +1,4 @@
 use image::{ImageBuffer, RgbImage};
-use rand::prelude::*;
 use std::rc::Rc;
 use utils::random_double;
 
@@ -20,8 +19,8 @@ use crate::vec3::*;
 
 fn main() {
     // image
-    let aspect_ratio: f64 = 16.0 / 9.0;
-    let output_width: u32 = 1920;
+    let aspect_ratio: f64 = 1.0;
+    let output_width: u32 = 250;
     let output_height: u32 = (output_width as f64 / aspect_ratio).ceil() as u32;
 
     // world
@@ -45,12 +44,10 @@ fn main() {
         dist_to_focus,
     );
 
-    let samples_per_pixel = 500;
-    let max_depth = 50;
+    let samples_per_pixel = 3;
+    let max_depth = 3;
 
     let mut img: RgbImage = ImageBuffer::new(output_width, output_height);
-
-    let mut rng = rand::thread_rng();
 
     println!();
 
@@ -58,46 +55,65 @@ fn main() {
         for i in 0..output_width {
             let mut color = Color::zero();
             for _ in 0..samples_per_pixel {
-                let u = (i as f64 + rng.gen_range(0.0..1.0)) / (output_width as f64 - 1.0);
-                let v = (j as f64 + rng.gen_range(0.0..1.0)) / (output_height as f64 - 1.0);
+                let u = (i as f64 + random_double()) / (output_width as f64 - 1.0);
+                let v = (j as f64 + random_double()) / (output_height as f64 - 1.0);
 
                 let r = cam.get_ray(u, v);
 
-                color = color + ray_color(&r, &world, max_depth);
+                color = color + li(&r, &world, max_depth);
             }
 
             color = color / samples_per_pixel as f64;
 
             // invert y axis
             write_pixel(&mut img, i, output_height - j - 1, color);
+            print!("\r");
+            print!(
+                "{:5}/{:5}. {:.2}%",
+                1 + output_width * j + i,
+                output_height * output_width,
+                (1 + output_width * j + i) as f64 * 100.0 / (output_height * output_width) as f64
+            );
         }
-        //print!("\r");
-        print!("line {}/ {}. {:.2}%", 1 + j, output_height, (1 + j) / output_height);
     }
     println!();
 
     img.save("test.png").unwrap();
 }
 
-fn ray_color(ray: &Ray, world: &HittableList, depth: u64) -> Color {
-    if depth == 0 {
-        return Color::zero();
+fn li(initial_ray: &Ray, world: &HittableList, initial_depth: u64) -> Color {
+    let mut throughput = Color::new(1.0, 1.0, 1.0);
+    let radiance;
+
+    let mut depth = initial_depth;
+    let mut ray = initial_ray.clone();
+
+    loop {
+        if depth == 0 {
+            return Color::zero();
+        }
+
+        if let Some(info) = world.hit(&ray, 1e-10_f64, 1e10_f64) {
+            let (sampled_dir, f, pdf) = info.material.sample(&ray.dir, info.clone());
+
+            let cos_theta = sampled_dir.dot(info.normal).max(0.0);
+
+            throughput = throughput * (f * cos_theta / pdf);
+
+            ray.orig = info.p;
+            ray.dir = sampled_dir;
+            depth = depth - 1;
+        } else {
+            break;
+        }
     }
 
     let unit_dir = ray.direction().unit();
     let t = 0.5 * (unit_dir.e[1] + 1.0);
 
-    let mut col = (1.0 - t) * Color::new(1.0, 1.0, 1.0) + t * Color::new(0.5, 0.7, 1.0);
+    radiance = throughput * ((1.0 - t) * Color::new(1.0, 1.0, 1.0) + t * Color::new(0.5, 0.7, 1.0));
 
-    if let Some(info) = world.hit(ray, 1e-10_f64, 1e10_f64) {
-        if let Some((scattered, atteunuation)) = info.material.scatter(ray, info.clone()) {
-            col = atteunuation * ray_color(&scattered, world, depth - 1);
-        } else {
-            col = Color::zero();
-        }
-    }
-
-    col
+    radiance
 }
 
 fn write_pixel<U>(img: &mut image::ImageBuffer<image::Rgb<u8>, U>, x: u32, y: u32, c: Color)
@@ -161,22 +177,10 @@ fn random_scene() -> HittableList {
         fuzz: 0.0,
     });
 
-    world.add(Sphere::new(
-        Point3::new(0, 1, 0),
-        1.0,
-        glass.clone(),
-    ));
+    world.add(Sphere::new(Point3::new(0, 1, 0), 1.0, glass.clone()));
 
-    world.add(Sphere::new(
-        Point3::new(-4, 1, 0),
-        1.0,
-        red.clone(),
-    ));
-    world.add(Sphere::new(
-        Point3::new(4, 1, 0),
-        1.0,
-        metal.clone(),
-    ));
+    world.add(Sphere::new(Point3::new(-4, 1, 0), 1.0, red.clone()));
+    world.add(Sphere::new(Point3::new(4, 1, 0), 1.0, metal.clone()));
 
     world
 }
