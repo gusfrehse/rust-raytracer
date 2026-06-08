@@ -32,7 +32,7 @@ fn main() {
     let vup = Vec3::new(0, 1, 0);
     let dist_to_focus = 10.0;
     let aperture = 0.1;
-    let fov = 20.0;
+    let fov = 30.0;
     let cam = Camera::new(
         lookfrom,
         lookat,
@@ -43,8 +43,7 @@ fn main() {
         dist_to_focus,
     );
 
-    let samples_per_pixel = 3;
-    let max_depth = 3;
+    let samples_per_pixel = 20;
 
     let mut img: RgbImage = ImageBuffer::new(output_width, output_height);
 
@@ -59,7 +58,7 @@ fn main() {
 
                 let r = cam.get_ray(u, v);
 
-                color = color + li(&r, &world, max_depth);
+                color = color + li(&r, &world);
             }
 
             color = color / samples_per_pixel as f64;
@@ -80,19 +79,36 @@ fn main() {
     img.save("test.png").unwrap();
 }
 
-fn li(initial_ray: &Ray, world: &HittableList, initial_depth: u64) -> Color {
-    let mut throughput = Color::new(1.0, 1.0, 1.0);
-    let radiance;
+const RR_MIN_BOUNCES: u64 = 3;
+const RR_CLAMP: f64 = 0.95;
+const MAX_DEPTH: u64 = 1000;
 
-    let mut depth = initial_depth;
+fn li(initial_ray: &Ray, world: &HittableList) -> Color {
+    let mut throughput = Color::new(1.0, 1.0, 1.0);
+    let mut radiance = Color::new(0.0, 0.0, 0.0);
+
+    let mut depth = 0u64;
     let mut ray = initial_ray.clone();
 
     loop {
-        if depth == 0 {
-            return Color::zero();
+        if depth >= MAX_DEPTH {
+            break;
         }
 
         if let Some(info) = world.hit(&ray, 1e-10_f64, 1e10_f64) {
+            if let Some(emitted) = info.material.emitted(&(-ray.dir), info.clone()) {
+                radiance += throughput * emitted;
+                break;
+            }
+
+            if depth >= RR_MIN_BOUNCES {
+                let q = throughput.max_component().min(RR_CLAMP);
+                if random_double() >= q {
+                    break;
+                }
+                throughput = throughput / q;
+            }
+
             let (sampled_dir, f, pdf) = info.material.sample(&ray.dir, info.clone());
 
             let cos_theta = sampled_dir.dot(info.normal).max(0.0);
@@ -101,16 +117,16 @@ fn li(initial_ray: &Ray, world: &HittableList, initial_depth: u64) -> Color {
 
             ray.orig = info.p;
             ray.dir = sampled_dir;
-            depth = depth - 1;
+            depth += 1;
         } else {
+            let unit_dir = ray.direction().unit();
+            let t = 0.5 * (unit_dir.e[1] + 1.0);
+
+            radiance += throughput
+                * ((1.0 - t) * Color::new(1.0, 1.0, 1.0) + t * Color::new(0.5, 0.7, 1.0));
             break;
         }
     }
-
-    let unit_dir = ray.direction().unit();
-    let t = 0.5 * (unit_dir.e[1] + 1.0);
-
-    radiance = throughput * ((1.0 - t) * Color::new(1.0, 1.0, 1.0) + t * Color::new(0.5, 0.7, 1.0));
 
     radiance
 }
@@ -176,10 +192,21 @@ fn random_scene() -> HittableList {
         fuzz: 0.0,
     });
 
+    let diffuse_light = Rc::new(DiffuseLight {
+        intensity: Color::new(0.0, 10.0, 0.0),
+    });
+
     world.add(Sphere::new(Point3::new(0, 1, 0), 1.0, glass.clone()));
 
     world.add(Sphere::new(Point3::new(-4, 1, 0), 1.0, red.clone()));
+
     world.add(Sphere::new(Point3::new(4, 1, 0), 1.0, metal.clone()));
+
+    world.add(Sphere::new(
+        Point3::new(-50, 10, -30),
+        5.0,
+        diffuse_light.clone(),
+    ));
 
     world
 }

@@ -13,6 +13,10 @@ impl Vec3 {
         return Vec3 { e: [0.0, 0.0, 0.0] };
     }
 
+    pub fn max_component(self) -> f64 {
+        self.e[0].max(self.e[1]).max(self.e[2])
+    }
+
     pub fn is_zero(&self) -> bool {
         const S: f64 = 1e-8;
 
@@ -67,6 +71,24 @@ impl ops::Add<Vec3> for Vec3 {
                 self.e[1] + _rhs.e[1],
                 self.e[2] + _rhs.e[2],
             ],
+        }
+    }
+}
+
+impl ops::AddAssign for Vec3 {
+    fn add_assign(&mut self, rhs: Vec3) {
+        self.e[0] += rhs.e[0];
+        self.e[1] += rhs.e[1];
+        self.e[2] += rhs.e[2];
+    }
+}
+
+impl ops::Neg for Vec3 {
+    type Output = Vec3;
+
+    fn neg(self) -> Vec3 {
+        Vec3 {
+            e: [-self.e[0], -self.e[1], -self.e[2]],
         }
     }
 }
