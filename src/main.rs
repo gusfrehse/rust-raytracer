@@ -24,15 +24,16 @@ fn main() {
     let output_height: u32 = (output_width as f64 / aspect_ratio).ceil() as u32;
 
     // world
-    let world = random_scene();
+    //let world = random_scene();
+    let world = three_ball_scene();
 
     // camera
-    let lookfrom = Point3::new(13, 2, 3);
+    let lookfrom = Point3::new(0, 2, 10);
     let lookat = Point3::new(0, 0, 0);
     let vup = Vec3::new(0, 1, 0);
     let dist_to_focus = 10.0;
     let aperture = 0.1;
-    let fov = 30.0;
+    let fov = 70.0;
     let cam = Camera::new(
         lookfrom,
         lookat,
@@ -206,6 +207,54 @@ fn random_scene() -> HittableList {
         Point3::new(-50, 10, -30),
         5.0,
         diffuse_light.clone(),
+    ));
+
+    world
+}
+
+fn three_ball_scene() -> HittableList {
+    let mut world = HittableList::new();
+
+    world.add(Sphere::new(
+        Point3::new(0.0, -1000, 0.0),
+        1000.0,
+        Rc::new(Lambertian {
+            albedo: Color::new(0.5, 0.5, 0.5),
+        }),
+    ));
+
+    let red = Rc::new(Lambertian {
+        albedo: Color::new(0.8, 0.1, 0.1),
+    });
+
+    let green = Rc::new(Lambertian {
+        albedo: Color::new(0.1, 0.8, 0.1),
+    });
+
+    let blue = Rc::new(Lambertian {
+        albedo: Color::new(0.1, 0.1, 0.8),
+    });
+
+    let white_diffuse_light = Rc::new(DiffuseLight {
+        intensity: Color::new(0.0, 10.0, 0.0),
+    });
+
+    world.add(Sphere::new(Point3::new(-5, 0, 0), 2.0, red.clone()));
+
+    world.add(Sphere::new(Point3::new(0, 0, 0), 2.0, green.clone()));
+
+    world.add(Sphere::new(Point3::new(5, 0, 0), 2.0, blue.clone()));
+
+    world.add(Sphere::new(
+        Point3::new(5, 10, -7),
+        3.0,
+        white_diffuse_light.clone(),
+    ));
+
+    world.add(Sphere::new(
+        Point3::new(-5, 10, -7),
+        3.0,
+        white_diffuse_light.clone(),
     ));
 
     world
