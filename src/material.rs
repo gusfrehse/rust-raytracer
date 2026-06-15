@@ -3,7 +3,7 @@ use crate::utils;
 use crate::vec3::*;
 
 pub trait BSDF {
-    fn emitted(&self, _wo: &Vec3, _info: HitInfo) -> Option<Color> {
+    fn emitted(&self, _wo: &Vec3, _info: &HitInfo) -> Option<Color> {
         None
     }
 
@@ -151,7 +151,7 @@ pub struct DiffuseLight {
 }
 
 impl BSDF for DiffuseLight {
-    fn emitted(&self, _wo: &Vec3, info: HitInfo) -> Option<Color> {
+    fn emitted(&self, _wo: &Vec3, info: &HitInfo) -> Option<Color> {
         if info.front_face {
             Some(self.intensity)
         } else {

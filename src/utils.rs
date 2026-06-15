@@ -23,9 +23,9 @@ pub fn random_point_in_sphere() -> Point3 {
     let mut rng = global_rng().lock().unwrap();
     loop {
         let p = Point3::new(
-            rng.gen_range(0.0..1.0),
-            rng.gen_range(0.0..1.0),
-            rng.gen_range(0.0..1.0),
+            rng.gen_range(-1.0..1.0),
+            rng.gen_range(-1.0..1.0),
+            rng.gen_range(-1.0..1.0),
         );
 
         if p.length2() < 1.0 {
@@ -37,13 +37,20 @@ pub fn random_point_in_sphere() -> Point3 {
 pub fn random_point_in_disk() -> Point3 {
     let mut rng = global_rng().lock().unwrap();
     loop {
-        let p = Point3::new(rng.gen_range(0.0..1.0), rng.gen_range(0.0..1.0), 0.0);
+        let p = Point3::new(rng.gen_range(-1.0..1.0), rng.gen_range(-1.0..1.0), 0.0);
 
         if p.length2() < 1.0 {
             return p;
         }
     }
 }
+
+pub fn random_element<T>(v: &[T]) -> (&T, f64) {
+    let mut rng = global_rng().lock().unwrap();
+    let idx = rng.gen_range(0..v.len());
+    (&v[idx], 1.0 / v.len() as f64)
+}
+
 pub fn reflect(v: Vec3, n: Vec3) -> Vec3 {
     v - 2.0 * v.dot(n) * n
 }

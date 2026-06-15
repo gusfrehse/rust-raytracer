@@ -1,13 +1,14 @@
 use crate::hittable::*;
 use crate::material::*;
 use crate::ray::*;
+use crate::utils::*;
 use crate::vec3::*;
 
 #[derive(Clone)]
 pub struct Sphere {
-    center: Point3,
-    radius: f64,
-    material: std::rc::Rc<dyn BSDF>,
+    pub center: Point3,
+    pub radius: f64,
+    pub material: std::rc::Rc<dyn BSDF>,
 }
 
 impl Sphere {
@@ -17,6 +18,13 @@ impl Sphere {
             radius: r,
             material: mat,
         }
+    }
+
+    pub fn sample_point(&self) -> (Point3, f64) {
+        let dir = random_unit_vector();
+        let p = self.center + self.radius * dir;
+        let pdf = 1.0 / (4.0 * PI * self.radius * self.radius);
+        (p, pdf)
     }
 }
 
