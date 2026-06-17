@@ -3,13 +3,21 @@ use crate::utils;
 use crate::vec3::*;
 
 pub trait BSDF {
+    fn is_delta(&self) -> bool {
+        false
+    }
+
     fn emitted(&self, _wo: &Vec3, _info: &HitInfo) -> Option<Color> {
         None
     }
 
-    fn eval(&self, wo: &Vec3, wi: &Vec3) -> Color;
+    fn eval(&self, wo: &Vec3, wi: &Vec3, info: &HitInfo) -> Color;
     fn sample(&self, wo: &Vec3, info: HitInfo) -> (Vec3, Color, f64); // wi, f, pdf
     fn pdf(&self, wo: &Vec3, wi: &Vec3, info: HitInfo) -> f64;
+
+    fn pl(&self, _prev_p: &Point3, _info: &HitInfo) -> Option<f64> {
+        None
+    }
 }
 
 pub struct Lambertian {
@@ -17,7 +25,7 @@ pub struct Lambertian {
 }
 
 impl BSDF for Lambertian {
-    fn eval(&self, _wo: &Vec3, _wi: &Vec3) -> Color {
+    fn eval(&self, _wo: &Vec3, _wi: &Vec3, _info: &HitInfo) -> Color {
         self.albedo / utils::PI
     }
 
@@ -36,6 +44,43 @@ impl BSDF for Lambertian {
 
     fn pdf(&self, _wo: &Vec3, wi: &Vec3, info: HitInfo) -> f64 {
         wi.dot(info.normal).max(0.) / utils::PI
+    }
+}
+
+pub struct Phong {
+    pub albedo: Color,
+    pub kd: f64,
+    pub ks: f64,
+    pub shininess: f64,
+}
+
+impl BSDF for Phong {
+    fn emitted(&self, _wo: &Vec3, _info: &HitInfo) -> Option<Color> {
+        None
+    }
+
+    fn eval(&self, wo: &Vec3, wi: &Vec3, info: &HitInfo) -> Color {
+        let n = info.normal;
+        let r = utils::reflect(-*wo, n);
+        let cos_alpha = r.dot(*wi).max(0.0);
+        let spec =
+            self.ks * (self.shininess + 2.0) / (2.0 * utils::PI) * cos_alpha.powf(self.shininess);
+        self.albedo * (self.kd / utils::PI + spec)
+    }
+
+    fn sample(&self, wo: &Vec3, info: HitInfo) -> (Vec3, Color, f64) {
+        let mut dir = info.normal + utils::random_unit_vector();
+        if dir.is_zero() {
+            dir = info.normal;
+        }
+        let wi = dir.unit();
+        let f = self.eval(wo, &wi, &info);
+        let pdf = wi.dot(info.normal).max(0.0) / utils::PI;
+        (wi, f, pdf)
+    }
+
+    fn pdf(&self, _wo: &Vec3, wi: &Vec3, info: HitInfo) -> f64 {
+        wi.dot(info.normal).max(0.0) / utils::PI
     }
 }
 
@@ -59,7 +104,7 @@ impl BSDF for Metal {
     //    }
     //}
 
-    fn eval(&self, _wo: &Vec3, _wi: &Vec3) -> Color {
+    fn eval(&self, _wo: &Vec3, _wi: &Vec3, _info: &HitInfo) -> Color {
         Vec3::new(0., 1., 0.) / utils::PI
     }
 
@@ -124,7 +169,7 @@ impl BSDF for Dieletric {
     //    Some((scattered, attenuation))
     //}
 
-    fn eval(&self, _wo: &Vec3, _wi: &Vec3) -> Color {
+    fn eval(&self, _wo: &Vec3, _wi: &Vec3, _info: &HitInfo) -> Color {
         Vec3::new(1.0, 0.0, 0.0) / utils::PI
     }
 
@@ -148,18 +193,15 @@ impl BSDF for Dieletric {
 
 pub struct DiffuseLight {
     pub intensity: Color,
+    pub area: f64,
 }
 
 impl BSDF for DiffuseLight {
-    fn emitted(&self, _wo: &Vec3, info: &HitInfo) -> Option<Color> {
-        if info.front_face {
-            Some(self.intensity)
-        } else {
-            None
-        }
+    fn emitted(&self, _wo: &Vec3, _info: &HitInfo) -> Option<Color> {
+        Some(self.intensity)
     }
 
-    fn eval(&self, _wo: &Vec3, _wi: &Vec3) -> Color {
+    fn eval(&self, _wo: &Vec3, _wi: &Vec3, _info: &HitInfo) -> Color {
         Color::zero()
     }
 
@@ -169,5 +211,37 @@ impl BSDF for DiffuseLight {
 
     fn pdf(&self, _wo: &Vec3, _wi: &Vec3, _info: HitInfo) -> f64 {
         unreachable!();
+    }
+
+    fn pl(&self, prev_p: &Point3, info: &HitInfo) -> Option<f64> {
+        let to_light = info.p - *prev_p;
+        let d2 = to_light.length2();
+        let cos_at_light = (-to_light.unit()).dot(info.normal).max(0.0).max(1e-8);
+        Some((1.0 / self.area) * d2 / cos_at_light)
+    }
+}
+
+pub struct Mirror {
+    pub albedo: Color,
+}
+
+impl BSDF for Mirror {
+    fn is_delta(&self) -> bool {
+        true
+    }
+
+    fn eval(&self, _wo: &Vec3, _wi: &Vec3, _info: &HitInfo) -> Color {
+        Color::zero()
+    }
+
+    fn sample(&self, wo: &Vec3, info: HitInfo) -> (Vec3, Color, f64) {
+        let n = info.normal;
+        let wi = utils::reflect(-*wo, n);
+        let cos_theta = wi.dot(n).abs().max(1e-8);
+        (wi, self.albedo / cos_theta, 1.0)
+    }
+
+    fn pdf(&self, _wo: &Vec3, _wi: &Vec3, _info: HitInfo) -> f64 {
+        0.0
     }
 }
