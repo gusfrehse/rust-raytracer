@@ -25,7 +25,7 @@ const RAY_MAX_T: f64 = 1e10_f64;
 fn main() {
     // image
     let aspect_ratio: f64 = 1.0;
-    let output_width: u32 = 700;
+    let output_width: u32 = 1280;
     let output_height: u32 = (output_width as f64 / aspect_ratio).ceil() as u32;
 
     // world
@@ -49,7 +49,7 @@ fn main() {
         dist_to_focus,
     );
 
-    let samples_per_pixel = 20;
+    let samples_per_pixel = 1000;
 
     let mut img: RgbImage = ImageBuffer::new(output_width, output_height);
     let mut variance_img: RgbImage = ImageBuffer::new(output_width, output_height);
@@ -172,8 +172,8 @@ fn li(initial_ray: &Ray, world: &HittableList, lights: &LightSampler) -> (Color,
                         let radiance_increment =
                             w * throughput * cos_theta_bounce * f * emitted / (pl_angle);
 
-                        //radiance += radiance_increment;
-                        //mis_viz += Color::new(radiance_increment.max_component(), 0.0, 0.0);
+                        radiance += radiance_increment;
+                        mis_viz += Color::new(radiance_increment.max_component(), 0.0, 0.0);
                     }
                 }
             }
@@ -323,8 +323,8 @@ fn three_ball_scene() -> (HittableList, LightSampler) {
     // middle sphere — blue Phong (glossy specular)
     let blue = Rc::new(Phong {
         albedo: Color::new(0.1, 0.1, 0.8),
-        kd: 0.3,
-        ks: 0.7,
+        kd: 0.1,
+        ks: 0.9,
         shininess: 64.0,
     });
 
@@ -355,7 +355,10 @@ fn three_ball_scene() -> (HittableList, LightSampler) {
         intensity: Color::new(0.3, 0.25, 0.4),
         area: 4.0 * PI * 1000.0 * 1000.0,
     });
-    world.add(Sphere::new(Point3::new(0.0, 0.0, 0.0), 1000.0, ambient));
+
+    let ambient_sphere = Sphere::new(Point3::new(0.0, 0.0, 0.0), 1000.0, ambient);
+    world.add(ambient_sphere.clone());
+    lights.add(ambient_sphere.clone());
 
     (world, lights)
 }
