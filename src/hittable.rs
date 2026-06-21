@@ -8,7 +8,7 @@ pub struct HitInfo {
     pub normal: Vec3,
     pub t: f64,
     pub front_face: bool,
-    pub material: std::rc::Rc<dyn BSDF>,
+    pub material: std::rc::Rc<dyn BRDF>,
 }
 
 impl HitInfo {
@@ -17,7 +17,7 @@ impl HitInfo {
         p: Vec3,
         outward_normal: Vec3,
         t: f64,
-        hit_material: std::rc::Rc<dyn BSDF>,
+        hit_material: std::rc::Rc<dyn BRDF>,
     ) -> HitInfo {
         let front_face = r.direction().dot(outward_normal) < 0.0;
         let normal = if front_face {

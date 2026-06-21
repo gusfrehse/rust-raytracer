@@ -49,7 +49,7 @@ fn main() {
         dist_to_focus,
     );
 
-    let samples_per_pixel = 1000;
+    let samples_per_pixel = 10;
 
     let mut img: RgbImage = ImageBuffer::new(output_width, output_height);
     let mut variance_img: RgbImage = ImageBuffer::new(output_width, output_height);
@@ -63,12 +63,12 @@ fn main() {
             let mut variance = Color::zero();
             let mut mis_viz = Color::zero();
             for _ in 0..samples_per_pixel {
-                let u = (i as f64 + random_double()) / (output_width as f64 - 1.0);
-                let v = (j as f64 + random_double()) / (output_height as f64 - 1.0);
+                let u = (i as f64) / (output_width as f64 - 1.0);
+                let v = (j as f64) / (output_height as f64 - 1.0);
 
                 let r = cam.get_ray(u, v);
 
-                let (c, m) = li(&r, &world, &lights);
+                let (c, m) = l(&r, &world, &lights);
                 color = color + c;
                 variance = variance + c * c;
                 mis_viz = mis_viz + m;
@@ -103,7 +103,7 @@ const RR_MIN_BOUNCES: u64 = 3;
 const RR_CLAMP: f64 = 0.95;
 const MAX_DEPTH: u64 = 1000;
 
-fn li(initial_ray: &Ray, world: &HittableList, lights: &LightSampler) -> (Color, Color) {
+fn l(initial_ray: &Ray, world: &HittableList, lights: &LightSampler) -> (Color, Color) {
     let mut throughput = Color::new(1.0, 1.0, 1.0);
     let mut radiance = Color::new(0.0, 0.0, 0.0);
     let mut mis_viz = Color::zero();
@@ -235,73 +235,6 @@ fn write_pixel<U>(
     }
 }
 
-fn random_scene() -> (HittableList, LightSampler) {
-    let mut world = HittableList::new();
-    let mut lights = LightSampler::new();
-
-    world.add(Sphere::new(
-        Point3::new(0.0, -1000, 0.0),
-        1000.0,
-        Rc::new(Lambertian {
-            albedo: Color::new(0.5, 0.5, 0.5),
-        }),
-    ));
-
-    for a in -11..11 {
-        for b in -11..11 {
-            let choose_mat = random_double();
-
-            let center = Point3::new(
-                a as f64 + 0.9 * random_double(),
-                0.2,
-                b as f64 + random_double(),
-            );
-            if (center - Point3::new(4, 0.2, 0)).length() > 0.9 {
-                if choose_mat < 0.8 {
-                    let albedo = Color::new(random_double(), random_double(), random_double());
-                    let sphere_mat = Rc::new(Lambertian { albedo });
-                    world.add(Sphere::new(center, 0.2, sphere_mat));
-                } else if choose_mat < 0.95 {
-                    let albedo = Color::new(random_double(), random_double(), random_double());
-                    let fuzz = random_double();
-                    let sphere_mat = Rc::new(Metal { albedo, fuzz });
-                    world.add(Sphere::new(center, 0.2, sphere_mat));
-                } else {
-                    let sphere_mat = Rc::new(Dieletric { ir: 1.5 });
-                    world.add(Sphere::new(center, 0.2, sphere_mat));
-                }
-            }
-        }
-    }
-
-    let glass = Rc::new(Dieletric { ir: 1.5 });
-
-    let red = Rc::new(Lambertian {
-        albedo: Color::new(0.4, 0.2, 0.1),
-    });
-
-    let metal = Rc::new(Metal {
-        albedo: Color::new(0.7, 0.6, 0.5),
-        fuzz: 0.0,
-    });
-
-    world.add(Sphere::new(Point3::new(0, 1, 0), 1.0, glass.clone()));
-
-    world.add(Sphere::new(Point3::new(-4, 1, 0), 1.0, red.clone()));
-
-    world.add(Sphere::new(Point3::new(4, 1, 0), 1.0, metal.clone()));
-
-    let light = Rc::new(DiffuseLight {
-        intensity: Color::new(525.0, 525.0, 525.0),
-        area: 4.0 * PI * 0.5 * 0.5,
-    });
-    let light_sphere = Sphere::new(Point3::new(5, 10, 0), 0.5, light.clone());
-    world.add(light_sphere.clone());
-    lights.add(light_sphere.clone());
-
-    (world, lights)
-}
-
 fn three_ball_scene() -> (HittableList, LightSampler) {
     let mut world = HittableList::new();
     let mut lights = LightSampler::new();
@@ -315,22 +248,22 @@ fn three_ball_scene() -> (HittableList, LightSampler) {
         }),
     ));
 
-    // left sphere — red Lambertian (diffuse)
+    // left sphere - red Lambertian (diffuse)
     let red = Rc::new(Lambertian {
         albedo: Color::new(0.8, 0.1, 0.1),
     });
 
-    // middle sphere — blue Phong (glossy specular)
+    // middle sphere - greenish mirror (perfect specular)
+    let mirror = Rc::new(Mirror {
+        albedo: Color::new(0.2, 0.9, 0.2),
+    });
+
+    // right sphere - blue Phong (glossy specular)
     let blue = Rc::new(Phong {
         albedo: Color::new(0.1, 0.1, 0.8),
         kd: 0.1,
         ks: 0.9,
         shininess: 64.0,
-    });
-
-    // right sphere — greenish mirror (perfect specular)
-    let mirror = Rc::new(Mirror {
-        albedo: Color::new(0.2, 0.9, 0.2),
     });
 
     let r = 2.0;
@@ -350,7 +283,7 @@ fn three_ball_scene() -> (HittableList, LightSampler) {
     world.add(light_sphere.clone());
     lights.add(light_sphere.clone());
 
-    // ambient sky-like light (no NEE — just for BSDF sampling to hit)
+    // ambient sky-like light (no NEE - just for BRDF sampling to hit)
     let ambient = Rc::new(DiffuseLight {
         intensity: Color::new(0.3, 0.25, 0.4),
         area: 4.0 * PI * 1000.0 * 1000.0,
@@ -361,8 +294,4 @@ fn three_ball_scene() -> (HittableList, LightSampler) {
     lights.add(ambient_sphere.clone());
 
     (world, lights)
-}
-
-fn power_heuristic(p1: f64, p2: f64, beta: f64) -> f64 {
-    p1.powf(beta) / (p1.powf(beta) + p2.powf(beta))
 }

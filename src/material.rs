@@ -2,7 +2,7 @@ use crate::hittable::*;
 use crate::utils;
 use crate::vec3::*;
 
-pub trait BSDF {
+pub trait BRDF {
     fn is_delta(&self) -> bool {
         false
     }
@@ -24,7 +24,7 @@ pub struct Lambertian {
     pub albedo: Color,
 }
 
-impl BSDF for Lambertian {
+impl BRDF for Lambertian {
     fn eval(&self, _wo: &Vec3, _wi: &Vec3, _info: &HitInfo) -> Color {
         self.albedo / utils::PI
     }
@@ -54,7 +54,7 @@ pub struct Phong {
     pub shininess: f64,
 }
 
-impl BSDF for Phong {
+impl BRDF for Phong {
     fn emitted(&self, _wo: &Vec3, _info: &HitInfo) -> Option<Color> {
         None
     }
@@ -77,7 +77,7 @@ impl BSDF for Phong {
         let f: Color;
 
         if utils::random_double() < w_spec {
-            // specular lobe: sample cosⁿ(α) around r
+            // specular lobe: sample cos^n(alpha) around r
             let z = r;
             let up = if z.e[0].abs() > 0.9 {
                 Vec3::new(0.0, 1.0, 0.0)
@@ -106,8 +106,7 @@ impl BSDF for Phong {
         // always compute the full mixture pdf at wi
         let pdf_diff = wi.dot(n).max(0.0) / utils::PI;
         let cos_alpha = r.dot(wi).max(0.0);
-        let pdf_spec =
-            (self.shininess + 1.0) / (2.0 * utils::PI) * cos_alpha.powf(self.shininess);
+        let pdf_spec = (self.shininess + 1.0) / (2.0 * utils::PI) * cos_alpha.powf(self.shininess);
         let pdf = (1.0 - w_spec) * pdf_diff + w_spec * pdf_spec;
         (wi, f, pdf)
     }
@@ -126,119 +125,12 @@ impl BSDF for Phong {
     }
 }
 
-pub struct Metal {
-    pub albedo: Color,
-    pub fuzz: f64,
-}
-
-impl BSDF for Metal {
-    //fn scatter(&self, r: &Ray, info: HitInfo) -> Option<(Ray, Color)> {
-    //    let dir =
-    //        utils::reflect(r.dir.unit(), info.normal) + self.fuzz * utils::random_point_in_sphere();
-
-    //    if dir.dot(info.normal) <= 0.0 {
-    //        None
-    //    } else {
-    //        let scattered = Ray { orig: info.p, dir };
-    //        let attenuation = self.albedo;
-
-    //        Some((scattered, attenuation))
-    //    }
-    //}
-
-    fn eval(&self, _wo: &Vec3, _wi: &Vec3, _info: &HitInfo) -> Color {
-        Vec3::new(0., 1., 0.) / utils::PI
-    }
-
-    fn sample(&self, _wo: &Vec3, info: HitInfo) -> (Vec3, Color, f64) {
-        let mut dir = info.normal + utils::random_unit_vector();
-
-        if dir.is_zero() {
-            dir = info.normal;
-        }
-
-        let wi = dir.unit();
-        let pdf = wi.dot(info.normal).max(0.);
-
-        (wi, Vec3::new(0., 1., 0.) / utils::PI, pdf)
-    }
-
-    fn pdf(&self, _wo: &Vec3, wi: &Vec3, info: HitInfo) -> f64 {
-        wi.dot(info.normal).max(0.) / utils::PI
-    }
-}
-
-pub struct Dieletric {
-    pub ir: f64,
-}
-
-impl Dieletric {
-    //fn reflectance(cosine: f64, ref_idx: f64) -> f64 {
-    //    let r0 = (1.0 - ref_idx) / (1.0 + ref_idx);
-    //    let r0 = r0 * r0;
-    //    r0 + (1.0 - r0) * (1.0 - cosine).powi(5)
-    //}
-}
-
-impl BSDF for Dieletric {
-    //fn scatter(&self, r: &Ray, info: HitInfo) -> Option<(Ray, Color)> {
-    //    let attenuation = Color::new(1.0, 1.0, 1.0);
-
-    //    let refraction_ratio = if info.front_face {
-    //        1.0 / self.ir
-    //    } else {
-    //        self.ir
-    //    };
-
-    //    let unit_direction = r.direction().unit();
-
-    //    let cos_theta = info.normal.dot(-1.0 * unit_direction).min(1.0);
-    //    let sin_theta = (1.0 - cos_theta * cos_theta).sqrt();
-    //    let cannot_refract = refraction_ratio * sin_theta > 1.0;
-    //    let will_reflect = Self::reflectance(cos_theta, refraction_ratio) > utils::random_double();
-
-    //    let direction = if cannot_refract || will_reflect {
-    //        utils::reflect(unit_direction, info.normal)
-    //    } else {
-    //        utils::refract(unit_direction, info.normal, refraction_ratio)
-    //    };
-
-    //    let scattered = Ray {
-    //        orig: info.p,
-    //        dir: direction,
-    //    };
-
-    //    Some((scattered, attenuation))
-    //}
-
-    fn eval(&self, _wo: &Vec3, _wi: &Vec3, _info: &HitInfo) -> Color {
-        Vec3::new(1.0, 0.0, 0.0) / utils::PI
-    }
-
-    fn sample(&self, _wo: &Vec3, info: HitInfo) -> (Vec3, Color, f64) {
-        let mut dir = info.normal + utils::random_unit_vector();
-
-        if dir.is_zero() {
-            dir = info.normal;
-        }
-
-        let wi = dir.unit();
-        let pdf = wi.dot(info.normal).max(0.);
-
-        (wi, Vec3::new(1.0, 0.0, 0.0) / utils::PI, pdf)
-    }
-
-    fn pdf(&self, _wo: &Vec3, wi: &Vec3, info: HitInfo) -> f64 {
-        wi.dot(info.normal).max(0.) / utils::PI
-    }
-}
-
 pub struct DiffuseLight {
     pub intensity: Color,
     pub area: f64,
 }
 
-impl BSDF for DiffuseLight {
+impl BRDF for DiffuseLight {
     fn emitted(&self, _wo: &Vec3, _info: &HitInfo) -> Option<Color> {
         Some(self.intensity)
     }
@@ -267,7 +159,7 @@ pub struct Mirror {
     pub albedo: Color,
 }
 
-impl BSDF for Mirror {
+impl BRDF for Mirror {
     fn is_delta(&self) -> bool {
         true
     }

@@ -1,4 +1,4 @@
-use crate::material::BSDF;
+use crate::material::BRDF;
 use crate::utils::random_element;
 use crate::vec3::Vec3;
 use crate::Sphere;
@@ -12,7 +12,7 @@ impl LightSampler {
         LightSampler { lights: Vec::new() }
     }
 
-    pub fn sample(&self) -> (Vec3, std::rc::Rc<dyn BSDF>, f64) {
+    pub fn sample(&self) -> (Vec3, std::rc::Rc<dyn BRDF>, f64) {
         let (sampled_light, lights_pdf) = random_element(&self.lights);
         let (sampled_point, light_pdf) = sampled_light.sample_point();
 
