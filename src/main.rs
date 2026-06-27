@@ -25,11 +25,10 @@ const RAY_MAX_T: f64 = 1e10_f64;
 fn main() {
     // image
     let aspect_ratio: f64 = 1.0;
-    let output_width: u32 = 1280;
+    let output_width: u32 = 1000;
     let output_height: u32 = (output_width as f64 / aspect_ratio).ceil() as u32;
 
     // world
-    //let (world, lights) = random_scene();
     let (world, lights) = three_ball_scene();
 
     // camera
@@ -49,7 +48,7 @@ fn main() {
         dist_to_focus,
     );
 
-    let samples_per_pixel = 10;
+    let samples_per_pixel = 64;
 
     let mut img: RgbImage = ImageBuffer::new(output_width, output_height);
     let mut variance_img: RgbImage = ImageBuffer::new(output_width, output_height);
@@ -60,22 +59,23 @@ fn main() {
     for j in 0..output_height {
         for i in 0..output_width {
             let mut color = Color::zero();
-            let mut variance = Color::zero();
+            let mut m2 = Color::zero();
             let mut mis_viz = Color::zero();
-            for _ in 0..samples_per_pixel {
+            for k in 1..=samples_per_pixel {
                 let u = (i as f64) / (output_width as f64 - 1.0);
                 let v = (j as f64) / (output_height as f64 - 1.0);
 
                 let r = cam.get_ray(u, v);
 
                 let (c, m) = l(&r, &world, &lights);
-                color = color + c;
-                variance = variance + c * c;
+                let delta = c - color;
+                color = color + delta / k as f64;
+                let delta2 = c - color;
+                m2 = m2 + delta * delta2;
                 mis_viz = mis_viz + m;
             }
 
-            color = color / samples_per_pixel as f64;
-            variance = variance / samples_per_pixel as f64 - color * color;
+            let variance = m2 / samples_per_pixel as f64;
             mis_viz = mis_viz / samples_per_pixel as f64;
 
             // invert y axis
@@ -112,7 +112,7 @@ fn l(initial_ray: &Ray, world: &HittableList, lights: &LightSampler) -> (Color, 
     let mut ray = initial_ray.clone();
     let mut prev_was_delta = false;
     let mut prev_p = Point3::zero();
-    let mut prev_bsdf_pdf = 0.0f64;
+    let mut prev_brdf_pdf = 0.0f64;
 
     loop {
         if depth >= MAX_DEPTH {
@@ -130,10 +130,10 @@ fn l(initial_ray: &Ray, world: &HittableList, lights: &LightSampler) -> (Color, 
                     radiance += radiance_increment;
                     mis_viz += Color::new(0.0, radiance_increment.max_component(), 0.0);
                 } else if let Some(pl_angle) = info.material.pl(&prev_p, &info) {
-                    let w_bsdf =
-                        prev_bsdf_pdf.powf(2.0) / (prev_bsdf_pdf.powf(2.0) + pl_angle.powf(2.0));
+                    let w_brdf =
+                        prev_brdf_pdf.powf(2.0) / (prev_brdf_pdf.powf(2.0) + pl_angle.powf(2.0));
 
-                    let radiance_increment = w_bsdf * throughput * emitted;
+                    let radiance_increment = w_brdf * throughput * emitted;
 
                     radiance += radiance_increment;
                     mis_viz += Color::new(0.0, 0.0, radiance_increment.max_component());
@@ -170,7 +170,7 @@ fn l(initial_ray: &Ray, world: &HittableList, lights: &LightSampler) -> (Color, 
                         let w = pl_angle.powf(2.0) / (pb.powf(2.0) + pl_angle.powf(2.0));
 
                         let radiance_increment =
-                            w * throughput * cos_theta_bounce * f * emitted / (pl_angle);
+                            w * throughput * cos_theta_bounce * f * emitted / pl_angle;
 
                         radiance += radiance_increment;
                         mis_viz += Color::new(radiance_increment.max_component(), 0.0, 0.0);
@@ -187,20 +187,19 @@ fn l(initial_ray: &Ray, world: &HittableList, lights: &LightSampler) -> (Color, 
                 throughput = throughput / q;
             }
 
-            let (sampled_dir, f, bsdf_pdf) = info.material.sample(&(-ray.dir).unit(), info.clone());
+            let (sampled_dir, f, brdf_pdf) = info.material.sample(&(-ray.dir).unit(), info.clone());
             prev_was_delta = info.material.is_delta();
-            prev_bsdf_pdf = bsdf_pdf;
+            prev_brdf_pdf = brdf_pdf;
             prev_p = info.p;
 
             let cos_theta = sampled_dir.dot(info.normal).max(0.0);
 
-            throughput = throughput * f * cos_theta / bsdf_pdf;
+            throughput = throughput * f * cos_theta / brdf_pdf;
 
             ray.orig = info.p;
             ray.dir = sampled_dir;
             depth += 1;
         } else {
-            //radiance += throughput * sky_color(ray.dir);
             break;
         }
     }

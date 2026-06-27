@@ -64,7 +64,7 @@ impl BRDF for Phong {
         let r = utils::reflect(-*wo, n);
         let cos_alpha = r.dot(*wi).max(0.0);
         let spec =
-            self.ks * (self.shininess + 2.0) / (2.0 * utils::PI) * cos_alpha.powf(self.shininess);
+            self.ks * (self.shininess + 1.0) / (2.0 * utils::PI) * cos_alpha.powf(self.shininess);
         self.albedo * (self.kd / utils::PI + spec)
     }
 
